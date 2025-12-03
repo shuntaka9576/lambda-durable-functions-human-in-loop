@@ -50,10 +50,31 @@ export const handler = withDurableExecution(
     );
 
     // Step 4: コールバックが終了するまで待機する
+    context.logger.info('=== BEFORE await callbackPromise ===');
     const approvalResult = await callbackPromise;
-    context.logger.info(`Approval received: ${approvalResult}`);
+    context.logger.info('=== AFTER await callbackPromise ===');
+    context.logger.info(`Approval received: ${JSON.stringify(approvalResult)}`);
 
-    // Step 5: Process order with retry strategy
+    context.logger.info(`approvalResult raw = ${JSON.stringify(approvalResult)}, type = ${typeof approvalResult}`);
+
+    // approvalResult が文字列の場合はパースする
+    const result = typeof approvalResult === 'string'
+      ? JSON.parse(approvalResult) as { approved: boolean }
+      : approvalResult as { approved: boolean };
+
+    context.logger.info(`result.approved = ${result.approved}, type = ${typeof result.approved}`);
+
+    // 却下された場合
+    if (result.approved !== true) {
+      context.logger.info('=== REJECTED branch ===');
+      await context.step('notify-result', async (stepContext) => {
+        stepContext.logger.info(`notify-result step: approved=${result.approved}`);
+        return await sendApprovalResult(orderId, false);
+      });
+      return { status: 'rejected', orderId };
+    }
+
+    // Step 5: Process order with retry strategy (承認時のみ)
     const processed = await context.step(
       'process-order',
       async () => processOrder(orderId),
@@ -67,6 +88,11 @@ export const handler = withDurableExecution(
     if (processed.status !== 'processed') {
       throw new Error('Processing failed');
     }
+
+    // Step 6: 処理成功を通知
+    await context.step('notify-result', async () => {
+      return await sendApprovalResult(orderId, true);
+    });
 
     context.logger.info(
       `Order successfully processed: ${JSON.stringify(processed)}`
@@ -118,14 +144,14 @@ async function sendForApproval(
               type: 'button',
               text: { type: 'plain_text', text: '承認' },
               style: 'primary',
-              value: JSON.stringify({ action: 'approve', callbackId }),
+              value: JSON.stringify({ approved: true, callbackId }),
               action_id: 'approve_action',
             },
             {
               type: 'button',
               text: { type: 'plain_text', text: '却下' },
               style: 'danger',
-              value: JSON.stringify({ action: 'reject', callbackId }),
+              value: JSON.stringify({ approved: false, callbackId }),
               action_id: 'reject_action',
             },
           ],
@@ -148,4 +174,38 @@ async function processOrder(
 ): Promise<{ status: string; orderId: string }> {
   // 注文処理ロジック
   return { status: 'processed', orderId };
+}
+
+async function sendApprovalResult(
+  orderId: string,
+  isApproved: boolean
+): Promise<{ sent: boolean }> {
+  const slackToken = process.env.SLACK_BOT_TOKEN;
+  const resultChannel = '#approval-results';
+
+  if (!slackToken) {
+    throw new Error('SLACK_BOT_TOKEN is required');
+  }
+  const emoji = isApproved ? '✅' : '❌';
+  const status = isApproved ? '承認' : '却下';
+
+  const response = await fetch('https://slack.com/api/chat.postMessage', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${slackToken}`,
+    },
+    body: JSON.stringify({
+      channel: resultChannel,
+      text: `${emoji} 注文 ${orderId} が${status}されました`,
+    }),
+  });
+
+  const apiResult = await response.json();
+
+  if (!apiResult.ok) {
+    throw new Error(`Slack API error: ${apiResult.error}`);
+  }
+
+  return { sent: true };
 }

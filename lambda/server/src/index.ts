@@ -1,6 +1,5 @@
 import {
   LambdaClient,
-  SendDurableExecutionCallbackFailureCommand,
   SendDurableExecutionCallbackSuccessCommand,
 } from '@aws-sdk/client-lambda';
 import { Hono } from 'hono';
@@ -18,27 +17,17 @@ app.post('/webhook/slack', async (c) => {
   const actionData = JSON.parse(action?.value || '{}');
   const callbackId = actionData.callbackId;
 
-  if (actionData.action === 'approve') {
-    const resultJson = JSON.stringify({ approved: true });
-    const resultBytes = new TextEncoder().encode(resultJson);
+  console.log('actionData:', JSON.stringify(actionData));
 
-    await lambdaClient.send(
-      new SendDurableExecutionCallbackSuccessCommand({
-        CallbackId: callbackId,
-        Result: resultBytes,
-      })
-    );
-  } else {
-    await lambdaClient.send(
-      new SendDurableExecutionCallbackFailureCommand({
-        CallbackId: callbackId,
-        Error: {
-          ErrorMessage: 'Rejected by user',
-          ErrorType: 'UserRejection',
-        },
-      })
-    );
-  }
+  const resultJson = JSON.stringify({ approved: actionData.approved });
+  const resultBytes = new TextEncoder().encode(resultJson);
+
+  await lambdaClient.send(
+    new SendDurableExecutionCallbackSuccessCommand({
+      CallbackId: callbackId,
+      Result: resultBytes,
+    })
+  );
 
   return c.json({ ok: true });
 });
