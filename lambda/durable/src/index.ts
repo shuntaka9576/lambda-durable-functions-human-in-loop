@@ -75,7 +75,7 @@ export const handler = withDurableExecution(
       throw new Error('Processing failed');
     }
 
-    // Step 6: 処理成功を通知
+    // 承認及び処理成功を通知
     await context.step('notify-result', async () => {
       return await sendApprovalResult(orderId, true);
     });
