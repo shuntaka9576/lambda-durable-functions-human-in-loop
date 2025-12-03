@@ -86,18 +86,11 @@ async function sendForApproval(
   callbackId: string,
   orderId: string
 ): Promise<{ sent: boolean }> {
-  console.log('=== sendForApproval START ===');
-  console.log(`callbackId: ${callbackId}`);
-  console.log(`orderId: ${orderId}`);
-
   const slackToken = process.env.SLACK_BOT_TOKEN;
-  const slackChannel = process.env.SLACK_CHANNEL;
+  const slackChannel = '#approvals';
 
-  console.log(`SLACK_BOT_TOKEN exists: ${!!slackToken}`);
-  console.log(`SLACK_CHANNEL: ${slackChannel}`);
-
-  if (!slackToken || !slackChannel) {
-    throw new Error('SLACK_BOT_TOKEN and SLACK_CHANNEL are required');
+  if (!slackToken) {
+    throw new Error('SLACK_BOT_TOKEN is required');
   }
 
   const response = await fetch('https://slack.com/api/chat.postMessage', {
@@ -142,13 +135,11 @@ async function sendForApproval(
   });
 
   const result = await response.json();
-  console.log(`Slack API response: ${JSON.stringify(result)}`);
 
   if (!result.ok) {
     throw new Error(`Slack API error: ${result.error}`);
   }
 
-  console.log('=== sendForApproval END ===');
   return { sent: true };
 }
 
