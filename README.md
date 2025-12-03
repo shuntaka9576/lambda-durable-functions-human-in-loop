@@ -1,5 +1,6 @@
 # lambda-durable-functions-human-in-loop
 
+![img](architecture.drawio.png)
 
 ## Slack Webhook を処理するサーバー Lambda の作成
 
