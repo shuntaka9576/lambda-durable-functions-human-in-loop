@@ -1,0 +1,20 @@
+{
+  "name": "@lambda/server",
+  "type": "module",
+  "version": "0.0.0",
+  "main": "dist/index.mjs",
+  "files": ["dist"],
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsdown": "0.16.0",
+    "tsx": "^4.20.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-lambda": "^3.943.0",
+    "hono": "^4.10.4"
+  }
+}

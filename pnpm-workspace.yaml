@@ -1,0 +1,4 @@
+packages:
+  - "lambda/durable"
+  - "lambda/server"
+  - "iac"

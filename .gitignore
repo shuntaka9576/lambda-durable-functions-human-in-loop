@@ -1,0 +1,7 @@
+node_modules
+tsconfig.tsbuildinfo
+cdk.out
+dist
+checkpoint-policy.json
+lambda-deploy
+function.zip
