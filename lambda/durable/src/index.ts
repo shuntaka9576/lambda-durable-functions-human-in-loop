@@ -33,8 +33,7 @@ export const handler = withDurableExecution(
     // Slack側に承認/却下するメッセージを送信
     const approvalRequest = await context.step(
       'send-for-approval',
-      async (stepContext) => {
-        stepContext.logger.info('=== INSIDE send-for-approval step ===');
+      async () => {
         return await sendForApproval(callbackId, orderId);
       }
     );
