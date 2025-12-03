@@ -1,7 +1,10 @@
+# lambda-durable-functions-human-in-loop
 
-AWS Lambda Durable Functionsのサンプルプロジェクト
 
-# Lambda Durable Functionsへ承認を送信するLambdaの作成
+## Slack Webhook を処理するサーバー Lambda の作成
+
+- Slack からのボタン押下（webhook）を受け取る
+- Durable Function のコールバックに結果を返す
 
 ```bash
 # Durable Functionが利用可能なオハイオリージョンを選択
@@ -17,18 +20,12 @@ pnpm cdk deploy
 ```
 
 
-# Lambda Durable Functionsの作成
-
-## 参考ドキュメント
+## Lambda Durable Functionsの作成
 
 - [Deploy and invoke Lambda durable functions with the AWS CLI](https://docs.aws.amazon.com/lambda/latest/dg/durable-getting-started-cli.html)
 
-## 前提条件
 
-- AWS CLI設定済み
-- pnpm インストール済み
-
-## 環境変数の設定
+### 環境変数の設定
 
 ```bash
 # Durable Functionが利用可能なオハイオリージョンを選択
@@ -38,9 +35,9 @@ export AWS_REGION=us-east-2
 export ACCOUNT_ID="<YOUR AWS ACCOUNT_ID>"
 ```
 
-## 初回セットアップ（1度のみ）
+### 初回セットアップ（1度のみ）
 
-### 1. IAMロールの作成
+#### IAMロールの作成
 
 ```bash
 aws iam create-role \
@@ -48,7 +45,7 @@ aws iam create-role \
   --assume-role-policy-document "file://lambda/durable/trust-policy.json"
 ```
 
-### 2. IAMポリシーの作成・アタッチ
+#### IAMポリシーの作成・アタッチ
 
 AWSLambdaBasicExecutionRoleのアタッチ
 
@@ -58,7 +55,7 @@ aws iam attach-role-policy \
   --policy-arn "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 ```
 
-チェックポイント用ポリシーの作成
+#### チェックポイント用ポリシーの作成
 
 ```bash
 # テンプレートからポリシーファイルを生成
@@ -76,13 +73,13 @@ aws iam attach-role-policy \
   --policy-arn "arn:aws:iam::${ACCOUNT_ID}:policy/durable-checkpoint-policy"
 ```
 
-### 3. S3バケットの作成
+#### S3バケットの作成
 
 ```bash
 aws s3 mb "s3://my-lambda-deploy-bucket-${ACCOUNT_ID}"
 ```
 
-### 4. Lambda関数の作成（初回ビルド・デプロイ含む）
+#### Lambda関数の作成（初回ビルド・デプロイ含む）
 
 ```bash
 # ビルド（依存関係も含めてバンドル）& zipにまとめる
@@ -101,7 +98,7 @@ aws lambda create-function \
   --durable-config '{"ExecutionTimeout": 900, "RetentionPeriodInDays":1}'
 ```
 
-## 継続デプロイ（コード変更時）
+### 継続デプロイ（コード変更時）
 
 ```bash
 # ビルド（依存関係も含めてバンドル）& zipにまとめる
