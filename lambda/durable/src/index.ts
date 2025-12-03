@@ -4,12 +4,6 @@ import {
   withDurableExecution,
 } from '@aws/durable-execution-sdk-js';
 
-export const config = {
-  name: 'Order Processing with Human Approval',
-  description:
-    'Demonstrates step, createCallback, and retryStrategy in TypeScript',
-};
-
 export const handler = withDurableExecution(
   async (event: { order_id?: string }, context: DurableContext) => {
     if (!event.order_id) {
@@ -17,26 +11,26 @@ export const handler = withDurableExecution(
     }
     const orderId = event.order_id;
 
-    // Step 1: Validate the order
-    const validated = await context.step('validate-order', async () => {
-      return validateOrder(orderId);
-    });
+    // orderIdのバリデーションチェック
+    const validated = await context.step('validate-order', async () => ({
+      status: 'validated',
+      orderId,
+    }));
     if (validated.status !== 'validated') {
       throw new Error('Validation failed');
     }
     context.logger.info(`Order validated: ${JSON.stringify(validated)}`);
 
-    // Step 2: callbackIdを生成
+    // 外部からのコールバックを待ち受けるためのIDを生成
     const [callbackPromise, callbackId] = await context.createCallback(
       'awaiting-approval',
       {
-        timeout: { minutes: 3 },
+        timeout: { minutes: 3 }, // タイムアウトを設定
       }
     );
     context.logger.info(`callbackIdを生成しました: ${callbackId}`);
-    context.logger.info('=== BEFORE send-for-approval step ===');
 
-    // Step 3: callbackId を外部に「橋渡し」するステップ
+    // Slack側に承認/却下するメッセージを送信
     const approvalRequest = await context.step(
       'send-for-approval',
       async (stepContext) => {
@@ -44,40 +38,33 @@ export const handler = withDurableExecution(
         return await sendForApproval(callbackId, orderId);
       }
     );
-    context.logger.info('=== AFTER send-for-approval step ===');
     context.logger.info(
       `Approval request sent: ${JSON.stringify(approvalRequest)}`
     );
 
-    // Step 4: コールバックが終了するまで待機する
-    context.logger.info('=== BEFORE await callbackPromise ===');
+    // Slack側で承認され、発行したCallbackIDで成功、失敗のAPIが実行されるか, タイムアウトまで待機
     const approvalResult = await callbackPromise;
-    context.logger.info('=== AFTER await callbackPromise ===');
-    context.logger.info(`Approval received: ${JSON.stringify(approvalResult)}`);
 
-    context.logger.info(`approvalResult raw = ${JSON.stringify(approvalResult)}, type = ${typeof approvalResult}`);
+    const result =
+      typeof approvalResult === 'string'
+        ? (JSON.parse(approvalResult) as { approved: boolean })
+        : (approvalResult as { approved: boolean });
 
-    // approvalResult が文字列の場合はパースする
-    const result = typeof approvalResult === 'string'
-      ? JSON.parse(approvalResult) as { approved: boolean }
-      : approvalResult as { approved: boolean };
-
-    context.logger.info(`result.approved = ${result.approved}, type = ${typeof result.approved}`);
-
-    // 却下された場合
     if (result.approved !== true) {
-      context.logger.info('=== REJECTED branch ===');
+      // 却下の場合、却下通知
       await context.step('notify-result', async (stepContext) => {
-        stepContext.logger.info(`notify-result step: approved=${result.approved}`);
+        stepContext.logger.info(
+          `notify-result step: approved=${result.approved}`
+        );
         return await sendApprovalResult(orderId, false);
       });
       return { status: 'rejected', orderId };
     }
 
-    // Step 5: Process order with retry strategy (承認時のみ)
+    // 承認された場合、注文処理を実施
     const processed = await context.step(
       'process-order',
-      async () => processOrder(orderId),
+      async () => ({ status: 'processed', orderId }),
       {
         retryStrategy: createRetryStrategy({
           maxAttempts: 3,
@@ -100,13 +87,6 @@ export const handler = withDurableExecution(
     return processed;
   }
 );
-
-async function validateOrder(
-  orderId: string
-): Promise<{ status: string; orderId: string }> {
-  // validate処理はモック
-  return { status: 'validated', orderId };
-}
 
 async function sendForApproval(
   callbackId: string,
@@ -167,13 +147,6 @@ async function sendForApproval(
   }
 
   return { sent: true };
-}
-
-async function processOrder(
-  orderId: string
-): Promise<{ status: string; orderId: string }> {
-  // 注文処理ロジック
-  return { status: 'processed', orderId };
 }
 
 async function sendApprovalResult(
