@@ -2,7 +2,7 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "deploy": {
-      "dependsOn": ["@lambda/durable#build"],
+      "dependsOn": ["@lambda/durable#build", "@lambda/durable-with-apigateway#build"],
       "cache": false,
       "env": [
         "AWS_REGION",

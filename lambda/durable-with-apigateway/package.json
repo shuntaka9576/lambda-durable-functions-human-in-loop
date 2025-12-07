@@ -1,0 +1,21 @@
+{
+  "name": "@lambda/durable-with-apigateway",
+  "type": "module",
+  "version": "0.0.0",
+  "main": "dist/index.mjs",
+  "files": ["dist"],
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsdown",
+    "start": "node dist/index.mjs",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsdown": "0.16.0",
+    "tsx": "^4.20.0"
+  },
+  "dependencies": {
+    "@aws/durable-execution-sdk-js": "^1.0.0"
+  }
+}

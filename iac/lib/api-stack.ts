@@ -1,7 +1,9 @@
 import path from 'node:path';
 import { CfnOutput, Duration, Stack, type StackProps } from 'aws-cdk-lib';
+import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import {
+  Alias,
   Architecture,
   Code,
   Function,
@@ -93,11 +95,77 @@ class DurableConstruct extends Construct {
   }
 }
 
+class DurableWithApiGatewayConstruct extends Construct {
+  constructor(scope: Construct, id: string) {
+    super(scope, id);
+
+    const durableLambda = new Function(this, 'DurableLambda', {
+      code: Code.fromAsset(
+        path.resolve(
+          import.meta.dirname!,
+          '../../lambda/durable-with-apigateway/dist'
+        )
+      ),
+      handler: 'index.handler',
+      runtime: Runtime.NODEJS_24_X,
+      architecture: Architecture.ARM_64,
+      memorySize: 256,
+      timeout: Duration.seconds(30),
+      environment: {},
+      durableConfig: {
+        executionTimeout: Duration.days(366),
+        // executionTimeout: Duration.minutes(15),
+        retentionPeriod: Duration.days(30),
+      },
+    });
+
+    durableLambda.addToRolePolicy(
+      new PolicyStatement({
+        actions: [
+          'lambda:CheckpointDurableExecution',
+          'lambda:GetDurableExecutionState',
+        ],
+        resources: ['*'],
+      })
+    );
+
+    const alias = new Alias(this, 'DurableLambdaAlias', {
+      aliasName: 'live',
+      version: durableLambda.currentVersion,
+    });
+
+    const api = new RestApi(this, 'DurableApi', {
+      restApiName: 'Durable Request API',
+    });
+
+    const requestResource = api.root.addResource('request');
+    requestResource.addMethod(
+      'POST',
+      new LambdaIntegration(alias, {
+        proxy: false,
+        integrationResponses: [{ statusCode: '202' }],
+        requestParameters: {
+          'integration.request.header.X-Amz-Invocation-Type': "'Event'",
+        },
+      }),
+      {
+        methodResponses: [{ statusCode: '202' }],
+      }
+    );
+
+    new CfnOutput(this, 'ApiEndpoint', {
+      value: api.url,
+      description: 'REST API エンドポイント',
+    });
+  }
+}
+
 export class MainStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
     new WebhookConstruct(this, 'Server');
     new DurableConstruct(this, 'HITLWorkflow');
+    new DurableWithApiGatewayConstruct(this, 'HITLWorkflowWithApiGateway');
   }
 }

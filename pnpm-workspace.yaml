@@ -1,4 +1,3 @@
 packages:
-  - "lambda/durable"
-  - "lambda/server"
+  - "lambda/*"
   - "iac"
