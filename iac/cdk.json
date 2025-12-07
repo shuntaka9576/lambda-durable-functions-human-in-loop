@@ -1,3 +1,4 @@
 {
-  "app": "pnpm tsx bin/cdk.ts"
+  "app": "pnpm tsx bin/cdk.ts",
+  "requireApproval": "never"
 }
