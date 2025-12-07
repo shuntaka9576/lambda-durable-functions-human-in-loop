@@ -76,7 +76,7 @@ class DurableConstruct extends Construct {
         SLACK_BOT_TOKEN: slackBotToken,
       },
       durableConfig: {
-        executionTimeout: Duration.minutes(15),
+        executionTimeout: Duration.days(366),
         retentionPeriod: Duration.days(30),
       },
     });
