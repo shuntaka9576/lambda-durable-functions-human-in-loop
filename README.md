@@ -2,10 +2,9 @@
 
 ![img](architecture.drawio.png)
 
-## Slack Webhook を処理するサーバー Lambda の作成
+ソース解説記事はこちら
 
-- Slack からのボタン押下（webhook）を受け取る
-- Durable Function のコールバックに結果を返す
+https://dev.classmethod.jp/articles/shuntaka-durable-functions-slack-approval/
 
 ```bash
 # Durable Functionが利用可能なオハイオリージョンを選択
@@ -19,6 +18,7 @@ export AWS_REGION=us-east-2
 
 export SLACK_BOT_TOKEN="xoxb-xxx"
 pnpm run deploy
+# → NodejsFunctionがまだDurable Functionをサポートしていないため、`pnpm run deploy `時に turboで lambda/durable のビルドがデプロイ前に実行されるようにしています
 ```
 
 
